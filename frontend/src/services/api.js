@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Set the base URL for the backend API
-const API_URL = 'http://localhost:5000/api/v1';
+const API_URL = 'https://api.cult.fitness/api/v1';
 
 // Create an axios instance with default settings
 const api = axios.create({
