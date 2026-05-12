@@ -6,7 +6,7 @@ const API_URL = 'https://api.cult.fitness/api/v1';
 // Create an axios instance with default settings
 const api = axios.create({
     baseURL: API_URL,
-    withCredentials: true, // Required to send/receive cookies
+    withCredentials: true, 
 });
 
 // Admin API calls
