@@ -11,6 +11,8 @@ import TestEmail from './pages/TestEmail';
 import Loading from './components/Loading';
 import './styles.css';
 import { useLocation } from 'react-router-dom';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 const PageWrapper = ({ children }) => {
   const [isLoading, setIsLoading] = React.useState(false);
@@ -32,6 +34,18 @@ const PageWrapper = ({ children }) => {
 function App() {
   return (
     <Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="dark"
+      />
       <Routes>
         {/* Auth Routes */}
         <Route path="/register" element={<PageWrapper><Register /></PageWrapper>} />

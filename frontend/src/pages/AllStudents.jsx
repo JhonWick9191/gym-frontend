@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { getAllUsers, editStudent, deleteStudent } from '../services/api';
+import { getAllUsers, editStudent, deleteStudent, searchStudents } from '../services/api';
 import Navbar from '../components/Navbar';
+import { toast } from 'react-toastify';
+import { Search, Edit2, Trash2, Calendar, Mail, User, X, Check } from 'lucide-react';
+import Button from '../components/Button';
 
 const AllStudents = () => {
     const [students, setStudents] = useState([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [message, setMessage] = useState({ type: '', text: '' });
     const [editData, setEditData] = useState(null);
+    const [updating, setUpdating] = useState(false);
 
     useEffect(() => {
         fetchStudents();
@@ -17,10 +20,10 @@ const AllStudents = () => {
         try {
             setLoading(true);
             const res = await getAllUsers();
-            setStudents(res.data.data);
-            setLoading(false);
+            setStudents(res.data.data || []);
         } catch (error) {
-            console.error('Failed to fetch students');
+            toast.error('Failed to fetch students');
+        } finally {
             setLoading(false);
         }
     };
@@ -32,9 +35,8 @@ const AllStudents = () => {
             return;
         }
         try {
-            // Search by name OR email using the general query parameter
             const res = await searchStudents({ query: val });
-            setStudents(res.data.data);
+            setStudents(res.data.data || []);
         } catch (error) {
             console.error('Search failed');
         }
@@ -45,120 +47,190 @@ const AllStudents = () => {
             try {
                 await deleteStudent(id);
                 setStudents(students.filter(s => s._id !== id));
-                setMessage({ type: 'success', text: 'Student deleted successfully' });
+                toast.success('Student deleted successfully');
             } catch (error) {
-                setMessage({ type: 'error', text: 'Failed to delete student' });
+                toast.error('Failed to delete student');
             }
         }
     };
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
+        setUpdating(true);
         try {
             const res = await editStudent(editData._id, {
                 email: editData.email,
                 toMonth: editData.toMonth
             });
-            setMessage({ type: 'success', text: res.data.message });
+            toast.success(res.data.message || 'Updated successfully');
             setEditData(null);
             fetchStudents();
         } catch (error) {
-            setMessage({ type: 'error', text: error.response?.data?.message || 'Update failed' });
+            toast.error(error.response?.data?.message || 'Update failed');
+        } finally {
+            setUpdating(false);
         }
     };
 
     return (
         <>
             <Navbar />
-            <div className="container">
-                <div className="page-header">
-                    <div style={{display: 'flex', alignItems: 'center', gap: '15px'}}>
-                        <h2 style={{margin: 0}}>All Users</h2>
+            <div className="container animate-in">
+                <div className="page-header" style={{ marginBottom: '2rem' }}>
+                    <div>
+                        <h1 style={{ fontSize: '2rem' }}>Gym Members</h1>
+                        <p style={{ color: 'var(--text-secondary)' }}>Manage your active and inactive students</p>
                     </div>
                     
-                    <div className="search-bar">
+                    <div className="search-bar" style={{ position: 'relative', maxWidth: '400px' }}>
+                        <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                         <input 
                             type="text" 
-                            placeholder="Search by Name or Email..." 
+                            className="form-control"
+                            placeholder="Search by name or email..." 
                             value={searchTerm}
+                            style={{ paddingLeft: '40px' }}
                             onChange={(e) => handleSearch(e.target.value)}
                         />
                     </div>
                 </div>
 
-                {message.text && <div className={`alert alert-${message.type}`}>{message.text}</div>}
-
-                {/* Edit Modal / Form */}
+                {/* Edit Modal Overlay */}
                 {editData && (
-                    <div className="card" style={{ maxWidth: '400px', border: '2px solid var(--accent-color)', position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1100 }}>
-                        <h3>Edit Student</h3>
-                        <form onSubmit={handleEditSubmit}>
-                            <div className="form-group">
-                                <label>Email</label>
-                                <input 
-                                    type="email" 
-                                    value={editData.email} 
-                                    onChange={(e) => setEditData({...editData, email: e.target.value})} 
-                                    required 
-                                />
+                    <div style={{ 
+                        position: 'fixed', 
+                        top: 0, left: 0, right: 0, bottom: 0, 
+                        background: 'rgba(0,0,0,0.8)', 
+                        backdropFilter: 'blur(4px)',
+                        zIndex: 1100, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        padding: '1rem'
+                    }}>
+                        <div className="card" style={{ maxWidth: '450px', width: '100%', border: '1px solid var(--accent-primary)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h3 className="card-title" style={{ margin: 0 }}>Edit Member</h3>
+                                <button onClick={() => setEditData(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                    <X size={24} />
+                                </button>
                             </div>
-                            <div className="form-group">
-                                <label>New Expiry Date</label>
-                                <input 
-                                    type="date" 
-                                    value={editData.toMonth ? new Date(editData.toMonth).toISOString().split('T')[0] : ''} 
-                                    onChange={(e) => setEditData({...editData, toMonth: e.target.value})} 
-                                    required 
-                                />
-                            </div>
-                            <button type="submit">Update Student</button>
-                            <button type="button" onClick={() => setEditData(null)} className="btn-secondary" style={{ marginTop: '0.5rem' }}>Cancel</button>
-                        </form>
+                            <form onSubmit={handleEditSubmit}>
+                                <div className="form-group">
+                                    <label className="form-label">Email Address</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input 
+                                            type="email" 
+                                            className="form-control"
+                                            value={editData.email} 
+                                            onChange={(e) => setEditData({...editData, email: e.target.value})} 
+                                            required 
+                                            style={{ paddingLeft: '36px' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="form-group">
+                                    <label className="form-label">Expiry Date</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <Calendar size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                        <input 
+                                            type="date" 
+                                            className="form-control"
+                                            value={editData.toMonth ? new Date(editData.toMonth).toISOString().split('T')[0] : ''} 
+                                            onChange={(e) => setEditData({...editData, toMonth: e.target.value})} 
+                                            required 
+                                            style={{ paddingLeft: '36px' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem' }}>
+                                    <Button 
+                                        type="button" 
+                                        variant="secondary" 
+                                        onClick={() => setEditData(null)}
+                                        style={{ flex: 1 }}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button 
+                                        type="submit" 
+                                        loading={updating}
+                                        icon={Check}
+                                        style={{ flex: 1 }}
+                                    >
+                                        Update
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
                 )}
 
-                {loading ? (
-                    <p style={{ textAlign: 'center' }}>Loading students...</p>
-                ) : (
-                    <div className="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Expire Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {students.map(student => (
-                                    <tr key={student._id}>
-                                        <td>{student.name}</td>
-                                        <td>{student.email}</td>
-                                        <td>{new Date(student.toMonth).toLocaleDateString()}</td>
-                                        <td>
-                                            <button 
-                                                onClick={() => setEditData(student)} 
-                                                className="btn-success" 
-                                                style={{ width: 'auto', marginRight: '0.5rem' }}
-                                            >
-                                                Edit
-                                            </button>
-                                            <button 
-                                                onClick={() => handleDelete(student._id)} 
-                                                className="btn-error" 
-                                                style={{ width: 'auto', backgroundColor: 'var(--error-color)' }}
-                                            >
-                                                Delete
-                                            </button>
+                <div className="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><User size={14} style={{ marginRight: '8px' }} /> Member</th>
+                                <th><Mail size={14} style={{ marginRight: '8px' }} /> Email</th>
+                                <th><Calendar size={14} style={{ marginRight: '8px' }} /> Expiry Date</th>
+                                <th style={{ textAlign: 'right' }}>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {loading ? (
+                                Array(5).fill(0).map((_, i) => (
+                                    <tr key={i}>
+                                        <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                            Loading member data...
                                         </td>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {students.length === 0 && <p style={{ textAlign: 'center', padding: '1rem' }}>No students found.</p>}
-                    </div>
-                )}
+                                ))
+                            ) : students.length > 0 ? (
+                                students.map(student => {
+                                    const isExpired = new Date(student.toMonth) < new Date();
+                                    return (
+                                        <tr key={student._id}>
+                                            <td style={{ fontWeight: '600' }}>{student.name}</td>
+                                            <td style={{ color: 'var(--text-secondary)' }}>{student.email}</td>
+                                            <td>
+                                                <span className={`badge ${isExpired ? 'badge-error' : 'badge-success'}`}>
+                                                    {new Date(student.toMonth).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                                </span>
+                                            </td>
+                                            <td style={{ textAlign: 'right' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
+                                                    <button 
+                                                        onClick={() => setEditData(student)} 
+                                                        className="btn-logout"
+                                                        title="Edit"
+                                                        style={{ color: 'var(--accent-primary)' }}
+                                                    >
+                                                        <Edit2 size={18} />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handleDelete(student._id)} 
+                                                        className="btn-logout"
+                                                        title="Delete"
+                                                        style={{ color: 'var(--error)' }}
+                                                    >
+                                                        <Trash2 size={18} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            ) : (
+                                <tr>
+                                    <td colSpan="4" style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-muted)' }}>
+                                        No members found.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </>
     );
